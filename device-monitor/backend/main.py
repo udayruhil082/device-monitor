@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from backend.database import save_reading, get_recent_readings
 from backend.alerts import evaluate_health, get_all_alerts
+from backend.predictor import predict_device_health
 
 app = FastAPI()
 
@@ -21,25 +22,20 @@ def root():
 
 @app.post("/ingest")
 def ingest(reading: DeviceReading):
-    # Save to database
     save_reading(
         device=reading.device,
         battery=reading.battery,
         latency_ms=reading.latency_ms,
         connected=reading.connected
     )
-    
-    # Check for alerts
     alerts = evaluate_health(
         device=reading.device,
         battery=reading.battery,
         latency_ms=reading.latency_ms,
         connected=reading.connected
     )
-    
     if alerts:
-        print(f"ALERTS TRIGGERED: {alerts}")
-    
+        print(f"ALERTS: {alerts}")
     return {
         "status": "ok",
         "received_at": datetime.utcnow().isoformat(),
@@ -54,3 +50,7 @@ def get_readings(device_name: str):
 @app.get("/alerts")
 def get_alerts():
     return {"alerts": get_all_alerts()}
+
+@app.get("/predict/{device_name}")
+def predict(device_name: str):
+    return predict_device_health(device_name)

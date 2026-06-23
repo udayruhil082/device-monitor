@@ -6,18 +6,14 @@ import time
 st.set_page_config(page_title="Device Health Monitor", layout="wide")
 st.title("🖥️ Device Health Monitor")
 
-device = st.sidebar.selectbox(
-    "Select Device",
-    ["AI Camera", "Drone", "IoT Gateway", "CPE"]
-)
+DEVICES = ["AI Camera", "Drone", "IoT Gateway", "CPE"]
+
+device = st.sidebar.selectbox("Select Device", DEVICES)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("All Alerts")
-
-# Fetch alerts
+st.sidebar.subheader("🚨 All Alerts")
 try:
-    alert_response = requests.get("http://127.0.0.1:8000/alerts")
-    all_alerts = alert_response.json()["alerts"]
+    all_alerts = requests.get("http://127.0.0.1:8000/alerts").json()["alerts"]
     if all_alerts:
         for alert in reversed(all_alerts[-10:]):
             if alert["level"] == "CRITICAL":
@@ -25,54 +21,80 @@ try:
             else:
                 st.sidebar.warning(f"🟡 {alert['message']}")
     else:
-        st.sidebar.success("All devices healthy")
+        st.sidebar.success("✅ All devices healthy")
 except:
     st.sidebar.info("No alerts yet")
 
-# Fetch device readings
-response = requests.get(f"http://127.0.0.1:8000/readings/{device}")
-data = response.json()["readings"]
+# Fetch prediction
+try:
+    pred = requests.get(f"http://127.0.0.1:8000/predict/{device}").json()
+except:
+    pred = None
 
-if data:
-    df = pd.DataFrame(data)
+# Fetch readings
+try:
+    readings = requests.get(f"http://127.0.0.1:8000/readings/{device}").json()["readings"]
+    df = pd.DataFrame(readings) if readings else None
+except:
+    df = None
 
-    # Metrics row
-    col1, col2, col3 = st.columns(3)
-    battery = df['battery'].iloc[0]
-    latency = df['latency_ms'].iloc[0]
-    connected = df['connected'].iloc[0]
+# Health score banner
+if pred and pred.get("health_score") is not None:
+    score = pred["health_score"]
+    status = pred["status"]
 
-    col1.metric("Battery", f"{battery}%")
-    col2.metric("Latency", f"{latency} ms")
-    col3.metric("Connected", "Yes" if connected else "No")
-
-    # Alert banners
-    if not connected:
-        st.error(f"🔴 CRITICAL: {device} is disconnected!")
-    if battery < 20:
-        st.error(f"🔴 CRITICAL: Battery at {battery}% — charge immediately!")
-    elif battery < 50:
-        st.warning(f"🟡 WARNING: Battery low at {battery}%")
+    if status == "HEALTHY":
+        st.success(f"✅ {device} — {status} | Health Score: {score}/100")
+    elif status == "AT RISK":
+        st.warning(f"⚠️ {device} — {status} | Health Score: {score}/100")
     else:
-        st.success(f"✅ {device} is healthy")
+        st.error(f"🔴 {device} — {status} | Health Score: {score}/100")
 
-    if latency > 200:
-        st.error(f"🔴 CRITICAL: Latency at {latency}ms!")
-    elif latency > 100:
-        st.warning(f"🟡 WARNING: Latency high at {latency}ms")
+    st.info(f"🔮 Prediction: {pred['message']}")
 
-    # Charts
+    # Prediction metrics
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Battery", f"{pred['current_battery']}%")
+    col2.metric("Battery Health", f"{pred['battery_health']}%")
+    col3.metric("Latency", f"{pred['current_latency_ms']} ms")
+    col4.metric("Connection Stability", f"{pred['connection_stability']}%")
+
+    st.markdown("---")
     col_a, col_b = st.columns(2)
     with col_a:
+        st.subheader("Latency trend")
+        trend = pred["latency_trend"]
+        if "RISING FAST" in trend:
+            st.error(f"📈 {trend}")
+        elif "increasing" in trend:
+            st.warning(f"📈 {trend}")
+        else:
+            st.success(f"📉 {trend}")
+    with col_b:
+        st.subheader("Time to failure")
+        ttd = pred.get("time_to_die_mins")
+        if ttd and ttd < 5:
+            st.error(f"⚡ ~{ttd} minutes remaining")
+        elif ttd:
+            st.warning(f"🕐 ~{ttd} minutes remaining")
+        else:
+            st.success("♾️ Battery stable")
+
+elif pred:
+    st.info(f"📡 {pred['message']}")
+
+# Charts
+if df is not None and not df.empty:
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
         st.subheader("Battery over time")
         st.line_chart(df.set_index("timestamp")["battery"])
-    with col_b:
+    with col2:
         st.subheader("Latency over time")
         st.line_chart(df.set_index("timestamp")["latency_ms"])
-
 else:
-    st.warning("No data yet for this device")
+    st.warning("No readings yet for this device")
 
-# Auto refresh every 10 seconds
 time.sleep(10)
 st.rerun()

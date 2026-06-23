@@ -51,10 +51,8 @@ def evaluate_health(device, battery, latency_ms, connected):
             "timestamp": timestamp
         })
 
-    # Store in memory log
     alert_log.extend(alerts)
-    
     return alerts
 
 def get_all_alerts():
-    return alert_log[-50:]  # last 50 alerts
+    return alert_log[-50:]
