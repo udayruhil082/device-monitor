@@ -15,6 +15,7 @@ class DeviceReading(BaseModel):
     signal_strength: float = None
     cpu_load: float = None
     altitude_m: float = None
+    temperature: float = None
 
 @app.get("/")
 def root():
@@ -26,13 +27,17 @@ def ingest(reading: DeviceReading):
         device=reading.device,
         battery=reading.battery,
         latency_ms=reading.latency_ms,
-        connected=reading.connected
+        connected=reading.connected,
+        temperature=reading.temperature,
+        cpu_load=reading.cpu_load
     )
     alerts = evaluate_health(
         device=reading.device,
         battery=reading.battery,
         latency_ms=reading.latency_ms,
-        connected=reading.connected
+        connected=reading.connected,
+        temperature=reading.temperature,
+        cpu_load=reading.cpu_load
     )
     if alerts:
         print(f"ALERTS: {alerts}")

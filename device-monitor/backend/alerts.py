@@ -5,11 +5,15 @@ THRESHOLDS = {
     "battery_warning": 50,
     "latency_critical_ms": 200,
     "latency_warning_ms": 100,
+    "temperature_critical_c": 85.0,
+    "temperature_warning_c": 75.0,
+    "cpu_critical_pct": 95.0,
+    "cpu_warning_pct": 85.0,
 }
 
 alert_log = []
 
-def evaluate_health(device, battery, latency_ms, connected):
+def evaluate_health(device, battery, latency_ms, connected, temperature=None, cpu_load=None):
     alerts = []
     timestamp = datetime.utcnow().isoformat()
 
@@ -50,6 +54,38 @@ def evaluate_health(device, battery, latency_ms, connected):
             "message": f"{device} latency high: {latency_ms}ms",
             "timestamp": timestamp
         })
+
+    if temperature is not None:
+        if temperature > THRESHOLDS["temperature_critical_c"]:
+            alerts.append({
+                "device": device,
+                "level": "CRITICAL",
+                "message": f"{device} temperature critically high: {temperature}°C!",
+                "timestamp": timestamp
+            })
+        elif temperature > THRESHOLDS["temperature_warning_c"]:
+            alerts.append({
+                "device": device,
+                "level": "WARNING",
+                "message": f"{device} temperature high: {temperature}°C",
+                "timestamp": timestamp
+            })
+
+    if cpu_load is not None:
+        if cpu_load > THRESHOLDS["cpu_critical_pct"]:
+            alerts.append({
+                "device": device,
+                "level": "CRITICAL",
+                "message": f"{device} CPU load critically high: {cpu_load}%",
+                "timestamp": timestamp
+            })
+        elif cpu_load > THRESHOLDS["cpu_warning_pct"]:
+            alerts.append({
+                "device": device,
+                "level": "WARNING",
+                "message": f"{device} CPU load high: {cpu_load}%",
+                "timestamp": timestamp
+            })
 
     alert_log.extend(alerts)
     return alerts
