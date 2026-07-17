@@ -5,6 +5,7 @@ Calculates health analytics and predictive diagnostics.
 """
 
 from database import db
+from datetime import datetime
 
 
 class AnalyticsService:
@@ -159,53 +160,116 @@ class AnalyticsService:
         else:
 
             failure_risk = "HIGH"
+            
+            # -------------------------------------------------
+               # Predict Time To Failure
+             # -------------------------------------------------
+
+        prediction_minutes = None
+
+        if len(history) >= 2:
+
+         history_sorted = list(reversed(history))
+
+        first = history_sorted[0]
+        last = history_sorted[-1]
+  
+        t1 = datetime.fromisoformat(first["timestamp"])
+        t2 = datetime.fromisoformat(last["timestamp"])
+
+        elapsed_minutes = (t2 - t1).total_seconds() / 60
+
+        if elapsed_minutes > 0:
+
+         latency_growth = last["latency"] - first["latency"]
+
+        growth_rate = latency_growth / elapsed_minutes
+
+        CRITICAL_LATENCY = 150
+
+        if growth_rate > 0:
+
+            remaining = CRITICAL_LATENCY - last["latency"]
+
+            if remaining > 0:
+
+                prediction_minutes = remaining / growth_rate
+
 
         # -------------------------------------------------
         # AI Prediction
         # -------------------------------------------------
 
-        if failure_risk == "LOW":
+                # -------------------------------------------------
+        # AI Prediction
+        # -------------------------------------------------
 
-            prediction = "No Failure Expected"
+        if prediction_minutes is None:
+
+            prediction = "No failure predicted."
 
             diagnosis = (
-                "System is healthy. "
-                "No abnormal behaviour detected."
+                "Latency is stable."
             )
 
             recommendation = (
-                "Continue normal monitoring."
+                "Continue monitoring."
             )
 
-        elif failure_risk == "MEDIUM":
+        elif prediction_minutes > 10:
 
             prediction = (
-                "Network Degradation Expected"
+                f"Possible degradation in {prediction_minutes:.1f} minutes."
             )
 
             diagnosis = (
-                "Increasing latency trend detected. "
-                "Possible network congestion."
+                "Latency is gradually increasing."
             )
 
             recommendation = (
-                "Inspect network connection and continue monitoring."
+                "Monitor network performance."
+            )
+
+        elif prediction_minutes > 5:
+
+            prediction = (
+                f"Failure expected in approximately {prediction_minutes:.1f} minutes."
+            )
+
+            diagnosis = (
+                "Latency trend indicates growing congestion."
+            )
+
+            recommendation = (
+                "Inspect the network before performance degrades."
+            )
+
+        elif prediction_minutes > 1:
+
+            prediction = (
+                f"Critical failure likely in {prediction_minutes:.1f} minutes."
+            )
+
+            diagnosis = (
+                "Latency is rising rapidly."
+            )
+
+            recommendation = (
+                "Immediate inspection recommended."
             )
 
         else:
 
             prediction = (
-                "Possible Device Failure"
+                "Failure expected within 1 minute."
             )
 
             diagnosis = (
-                "Critical latency detected. "
-                "Camera may disconnect if conditions persist."
+                "Critical latency threshold is imminent."
             )
 
             recommendation = (
-                "Immediate inspection recommended. "
-                "Check network connectivity and restart the camera if required."
+                "Immediate action required."
             )
 
         return {
@@ -233,6 +297,8 @@ class AnalyticsService:
             "diagnosis": diagnosis
 
         }
+        
+      
 
 
 analytics = AnalyticsService()

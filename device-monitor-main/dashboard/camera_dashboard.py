@@ -1,8 +1,12 @@
 import streamlit as st
+import time
 import requests
 import pandas as pd
 from datetime import datetime
 from streamlit.components.v1 import html
+
+if "failure_deadline" not in st.session_state:
+    st.session_state.failure_deadline = None
 
 # -------------------------------------------------------
 # API
@@ -39,6 +43,16 @@ def fetch(endpoint):
 # -------------------------------------------------------
 
 def show_camera_dashboard():
+    
+        # -------------------------------------------------------
+    # Prediction Countdown State
+    # -------------------------------------------------------
+
+    if "prediction_start_time" not in st.session_state:
+        st.session_state.prediction_start_time = None
+
+    if "prediction_duration" not in st.session_state:
+        st.session_state.prediction_duration = 300  # 5 minutes
 
     # -------------------------------------------------------
     # CSS
@@ -139,7 +153,7 @@ div[data-testid="stTextInput"] > div > div > input {
     # HEADER
     # -------------------------------------------------------
 
-    st.title("🖥 Intelligent Device Health Monitoring Platform")
+    st.title(" Ai Camera Health Monitoring")
 
     html("""
 
@@ -175,9 +189,9 @@ div[data-testid="stTextInput"] > div > div > input {
 
     tab1, tab2, tab3, tab4 = st.tabs(
         [
-            "📊 Live Metrics",
-            "📷 Device Information",
-            "📈 Analytics",
+            " Live Metrics",
+            " Device Information",
+            " Analytics",
             "⚙ Settings"
         ]
     )
@@ -240,7 +254,7 @@ div[data-testid="stTextInput"] > div > div > input {
 
             last_update = datetime.now().strftime("%I:%M:%S %p")
 
-            st.subheader("📊 Live Device Metrics")
+            st.subheader(" Live Device Metrics")
 
             c1, c2, c3 = st.columns(3)
 
@@ -288,25 +302,11 @@ div[data-testid="stTextInput"] > div > div > input {
                     last_update
                 )
 
-            st.markdown("---")
-
-            st.subheader("🔮 Predicted Failure")
-
-            if "LOW" in failure_risk:
-
-                st.success(prediction)
-
-            elif "MEDIUM" in failure_risk:
-
-                st.warning(prediction)
-
-            else:
-
-                st.error(prediction)
+            
 
             st.markdown("---")
 
-            st.subheader("📘 Health Thresholds")
+            st.subheader(" Health Thresholds")
 
             st.info(
                 """
@@ -326,7 +326,7 @@ Device Failure
 
             st.markdown("---")
 
-            st.subheader("📈 Latency Trend")
+            st.subheader(" Latency Trend")
 
             if history_data and history_data["success"]:
 
@@ -478,8 +478,31 @@ Device Failure
             max_latency = analytics["maximum_latency"]
             stability = analytics["connection_stability"]
             health = analytics["health_score"]
+            
+                    # -------------------------------------------------------
+            # Prediction Countdown Logic
+            # -------------------------------------------------------
 
-            st.subheader("📈 Device Health Analytics")
+            import time
+
+            # GREEN
+            if avg_latency < 60:
+
+                st.session_state.prediction_start_time = None
+
+            # YELLOW
+            elif avg_latency <= 100:
+
+                if st.session_state.prediction_start_time is None:
+
+                    st.session_state.prediction_start_time = time.time()
+
+            # RED
+            else:
+
+                st.session_state.prediction_start_time = None
+
+            st.subheader(" Device Health Analytics")
 
             c1, c2 = st.columns(2)
 
@@ -550,47 +573,125 @@ Device Failure
 
             st.markdown("---")
 
-            st.subheader("💚 Health Score")
+            st.subheader(" Health Score")
 
             st.progress(int(health))
 
             st.markdown("---")
 
-            st.subheader("🔮 Prediction")
+            st.subheader(" Prediction")
+
+            import time
+
+            # ---------------- GREEN ----------------
 
             if avg_latency < 60:
 
                 st.success("""
-🟢 No failure expected
+🟢 No Failure Expected
 
-Average latency is within the healthy range.
+System is operating normally.
 
 Continue monitoring.
 """)
 
+                       # ---------------- YELLOW ----------------
+
             elif avg_latency <= 100:
 
-                st.warning("""
-🟡 Network degradation expected
+                if st.session_state.prediction_start_time is None:
+                    st.session_state.prediction_start_time = time.time()
 
-Average latency is increasing.
+                elapsed = int(
+                    time.time() -
+                    st.session_state.prediction_start_time
+                )
 
-Possible network congestion within the next few minutes.
-""")
+                remaining = (
+                    st.session_state.prediction_duration -
+                    elapsed
+                )
+
+                if remaining <= 0:
+
+                    st.session_state.prediction_start_time = time.time()
+
+                    remaining = st.session_state.prediction_duration
+
+                html(
+                    f"""
+                    <div style="
+                        background:#FFF8E1;
+                        border-left:6px solid #FFC107;
+                        padding:18px;
+                        border-radius:8px;
+                        font-family:Arial;
+                    ">
+
+                    <h4 style="margin:0;color:#9A6700;">
+                    🟡 Network Degradation Detected
+                    </h4>
+
+                    <p style="margin-top:15px;font-size:16px;">
+                    Failure expected in:
+                    </p>
+
+                    <h1 id="countdown"
+                        style="
+                        color:#B26A00;
+                        font-size:40px;
+                        margin-top:0;
+                        margin-bottom:10px;">
+                    </h1>
+
+                    <p style="font-size:15px;">
+                    Monitor the network before performance degrades.
+                    </p>
+
+                    </div>
+
+                    <script>
+
+                    let remaining = {remaining};
+
+                    function updateCountdown(){{
+
+                        let minutes = Math.floor(remaining/60);
+                        let seconds = remaining%60;
+
+                        document.getElementById("countdown").innerHTML =
+                            String(minutes).padStart(2,"0")
+                            + ":"
+                            + String(seconds).padStart(2,"0");
+
+                        if(remaining>0){{
+                            remaining--;
+                        }}
+
+                    }}
+
+                    updateCountdown();
+
+                    setInterval(updateCountdown,1000);
+
+                    </script>
+                    """,
+                    height=220,
+                )
+
+            # ---------------- RED ----------------
 
             else:
 
                 st.error("""
-🔴 High failure probability
+🔴 Immediate Action Required
 
-Average latency has crossed the critical threshold.
+Critical latency detected.
 
-Immediate inspection is recommended.
+Inspect the device immediately.
 """)
 
-            st.markdown("---")
-
-            st.subheader("🤖 AI Diagnosis")
+            st.subheader(" AI Diagnosis")
 
             if health >= 80:
 

@@ -10,7 +10,7 @@ from backend.server_alerts import alerts
 
 def show_header():
 
-    st.title("🖥 Edge Server Health Monitoring")
+    st.title(" Edge Server Health Monitoring")
 
     st.markdown(
         """
@@ -76,11 +76,13 @@ def create_tabs():
 
         [
 
-            "📊 Live Monitoring",
+            " Live Monitoring",
 
-            "🖥 Device Information",
+            " Device Information",
 
-            "❤️ AI Health & Prediction"
+            " AI Health & Prediction",
+
+            " External Data"
 
         ]
 
@@ -96,7 +98,7 @@ def show_live_monitoring():
 
     live = analytics_data["live"]
 
-    st.subheader("📊 Live Server Metrics")
+    st.subheader(" Live Server Metrics")
 
     col1, col2, col3 = st.columns(3)
 
@@ -138,7 +140,7 @@ def show_live_monitoring():
 
     st.divider()
 
-    st.subheader("📈 Live Resource Utilization")
+    st.subheader(" Live Resource Utilization")
 
     cpu_col, ram_col, disk_col = st.columns(3)
 
@@ -176,7 +178,7 @@ def show_device_information():
 
     cpu_info = live["cpu_info"]
 
-    st.subheader("🖥 Edge Server Information")
+    st.subheader(" Edge Server Information")
 
     col1, col2 = st.columns(2)
 
@@ -234,7 +236,7 @@ def show_device_information():
 
     st.divider()
 
-    st.subheader("💾 Storage Information")
+    st.subheader(" Storage Information")
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -292,7 +294,7 @@ def show_ai_health():
     prediction = st.session_state.server_prediction
     alert_list = st.session_state.server_alerts
 
-    st.subheader("❤️ AI Health & Prediction")
+    st.subheader(" AI Health & Prediction")
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -342,13 +344,13 @@ def show_ai_health():
 
     with left:
 
-        st.subheader("🤖 AI Diagnosis")
+        st.subheader(" AI Diagnosis")
 
         st.info(
             prediction["diagnosis"]
         )
 
-        st.subheader("💡 Recommendation")
+        st.subheader(" Recommendation")
 
         st.success(
             prediction["recommendation"]
@@ -356,7 +358,7 @@ def show_ai_health():
 
     with right:
 
-        st.subheader("🚨 Active Alerts")
+        st.subheader(" Active Alerts")
 
         for alert in alert_list:
 
@@ -453,7 +455,7 @@ def show_ai_health():
     # AI Diagnosis
     # ==========================================
 
-    st.subheader("🤖 AI Diagnosis")
+    st.subheader(" AI Diagnosis")
 
     st.info(
 
@@ -465,7 +467,7 @@ def show_ai_health():
     # Recommendation
     # ==========================================
 
-    st.subheader("💡 Recommendation")
+    st.subheader(" Recommendation")
 
     st.success(
 
@@ -479,7 +481,7 @@ def show_ai_health():
     # Active Alerts
     # ==========================================
 
-    st.subheader("🚨 Active Alerts")
+    st.subheader(" Active Alerts")
 
     for alert in alert_list:
 
@@ -511,8 +513,61 @@ def show_ai_health():
 
                 f"🟢 {title}\n\n{message}"
 
-            )
+            )       
             
+import requests
+
+
+def show_thingspeak():
+
+    st.subheader(" External Data")
+
+    st.caption("Live sensor data from ThingSpeak")
+
+    CHANNEL_ID = "3426883"
+    READ_API_KEY = "8XZ1WL6NHYO31JCT"
+
+    url = (
+        f"https://api.thingspeak.com/channels/"
+        f"{CHANNEL_ID}/feeds/last.json"
+        f"?api_key={READ_API_KEY}"
+    )
+
+    try:
+
+        response = requests.get(url, timeout=5)
+
+        data = response.json()
+
+        field1 = data.get("field1", "N/A")
+        field2 = data.get("field2", "N/A")
+        field3 = data.get("field3", "N/A")
+        field4 = data.get("field4", "N/A")
+        field5 = data.get("field5", "N/A") 
+         
+        st.success("Connected to ThingSpeak")
+
+        col1, col2 = st.columns(2)
+
+
+        with col1:
+         st.metric("Temperature (°C)", field1)
+         st.metric("Humidity (%)", field2)
+         st.metric("Gas Sensor", field3)
+
+        with col2:
+         st.metric("Digital Vibration", field4)
+         st.metric("Analog Vibration", field5)
+
+        st.markdown("---")
+
+        st.write("**Last Updated:**", data.get("created_at"))
+
+    except Exception as e:
+
+        st.error(f"Unable to fetch ThingSpeak data.\n\n{e}")
+        
+        
          # =====================================================
 # MAIN DASHBOARD
 # =====================================================
@@ -560,7 +615,7 @@ def show_server_dashboard():
 
     # ---------------- Tabs ----------------
 
-    tab1, tab2, tab3 = create_tabs()
+    tab1, tab2, tab3, tab4 = create_tabs()
 
     with tab1:
 
@@ -573,3 +628,8 @@ def show_server_dashboard():
     with tab3:
 
         show_ai_health()
+        
+    with tab4:
+
+        show_thingspeak()
+        
